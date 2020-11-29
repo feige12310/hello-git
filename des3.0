@@ -1,0 +1,110 @@
+
+import re
+
+def delmess(s):  #处理明文/密文/密钥，转化为二进制
+    res = ""
+    for i in s:  #对每个字符转成二进制
+        tmp=bin(int(i,16))
+        tmp = tmp[2:]  #去掉ob
+        for j in range(0,4-len(tmp)):   #补齐8位
+            tmp = '0'+ tmp  
+        res += tmp
+    ans = len(res)
+    if ans % 64 != 0:
+        for i in range( 64 - (ans%64)):           #不够64位补充0
+            res += '0'
+    return res
+
+def get16key(key):  #得到16个48位秘钥
+    res=""
+    keylist=[]  #存储变换后的16个新密钥
+    for i in PC_1:  #PC_1盒上的元素表示位置,循环56次
+        res += key[i-1]    
+    resl0=res[:28]
+    resr0=res[28:]
+
+    for i in SHIFT:   #shift左移位数
+        resl0=resl0[i:]+resl0[:i]
+        resr0=resr0[i:]+resr0[:i]
+        resnew0=resl0+resr0  #左移后秘钥
+        resnew1=""        #变换后的新秘钥
+        for j in PC_2:
+            resnew1 += resnew0[j-1]
+        keylist.append(resnew1)
+    return keylist
+
+def str_xor(my_str1,my_str2):  #做异或
+    res = ""
+    for i in range(0,len(my_str1)):
+        xor_res = int(my_str1[i],10)^int(my_str2[i],10) #变成10进制是转化成字符串 2进制与10进制异或结果一样，都是1,0
+        if xor_res == 1:
+            res += '1'
+        if xor_res == 0:
+            res += '0'
+    return res
+
+def fun15(r0,key):  #轮函数
+    res = ""  #E盒置换，扩展为48位
+    for i in E:
+        res += r0[i-1]
+
+    res2=str_xor(res,key) #扩展后与秘钥异或
+
+    res3 = "" #S盒操作
+    c = 0
+    for i in range(0,len(res2),6):#步长为6，6位一组
+        now_str = res2[i:i+6]    #第i个分组
+        row = int(now_str[0]+now_str[5],2)   #b1b6 =r   第r行
+        col = int(now_str[1:5],2)   #第c列
+        #第几个s盒的第row*16+col个位置的元素
+        num = bin(S[c][row*16 + col])[2:]   #bin输出可能不是4位，加上字符0
+        for j in range(0,4-len(num)):
+            num = '0'+ num
+        res3 += num
+        c  += 1
+
+    res4 = "" #p盒置换
+    for i in  P:
+        res4 += res3[i-1]
+    return res4
+
+def desmain(mess,keylist):
+    tmp = re.findall(r'.{64}',mess) 
+    miwen=""
+    for item in tmp:
+        res=""
+        for i in IP_table:
+            res += item[i-1]    #ip置换
+        l0=res[:32]
+        r0=res[32:]
+        for i in range(0,16):
+            mes_tmp = r0  #暂存右边32位
+            f_result = fun15(mes_tmp,keylist[i])   #右32位与k的f函数值
+            r0 = str_xor(f_result,l0)#f函数的结果与左边32位异或   作为下次右边32位
+            l0 = mes_tmp   #上一次的右边直接放到左边
+        mes_fin_left = r0
+        mes_fin_right = l0
+        bin_str=mes_fin_left + mes_fin_right
+        res2 = ""
+        for i in IP_re_table: #最后的ip置换
+            res2 += bin_str[i-1]
+        miwen+=res2
+
+    res3 = ""#将二进制密文转换为十六进制
+    tmp1 = re.findall(r'.{4}',miwen)  #每8位表示一个字符
+    for i in tmp1:
+        res3 += hex(int(i,2))[2:]  #2进制转化为16进制 
+    return res3
+
+choose_mode= int(input("请选择：1、加密   2、解密"))
+mingwen=input("输入明文/密文：")
+key=input("输入秘钥：")
+mess=delmess(mingwen)
+key=delmess(key)
+keylist=get16key(key)
+if choose_mode==2:   #当解密时把keylist顺序倒转
+    keylisted=keylist
+    for i in range(16):
+        keylist[i]=keylisted[15-i]
+res3=desmain(mess, keylist)
+print(res3)
