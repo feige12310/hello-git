@@ -114,9 +114,8 @@ key=input("输入秘钥：")
 
 def delmess(s):
     res = ""
-    for i in s:  #对每个字符转成二进制
-        y=bin(int(i,16))
-        tmp = bin(ord(i))  #字符转成asc码，再
+    for i in s:  #对每个字符进行二进制转化
+        tmp = bin(ord(i))  #字符转成asc码，再转成二进制
         tmp = tmp[2:]  #去掉ob
         for j in range(0,8-len(tmp)):   #补齐8位
             tmp = '0'+ tmp   
